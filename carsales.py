@@ -1,5 +1,5 @@
-from flask import Flask, redirect, render_template, request,jsonify, abort
-import psycopg2
+import os
+from flask import Flask, request, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 
@@ -8,7 +8,12 @@ carsales = Flask(__name__)
 
 CORS(carsales)
 
-carsales.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:password@localhost/vehicles'
+DB_USER = os.environ.get('DB_USER')
+DB_PASSWORD = os.environ.get('DB_PASSWORD')
+
+carsales.config['SQLALCHEMY_DATABASE_URI'] = (
+    f'postgresql://{DB_USER}:{DB_PASSWORD}@192.168.100.10/vehicles'
+)
 carsales.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(carsales)
@@ -16,15 +21,16 @@ db = SQLAlchemy(carsales)
 
 class RedCars(db.Model):
     __tablename__ = "redcars"
-    id = db.Column(db.Integer, primary_key = True)
-    car_name = db.Column(db.String(100), nullable = False)
-    car_type = db.Column(db.String(100), nullable = False)
-    car_year = db.Column(db.Integer(), nullable = False)
-    car_price = db.Column(db.Float(), nullable = False)
-    car_description = db.Column(db.String(250), nullable = False)
+    id = db.Column(db.Integer, primary_key=True)
+    car_name = db.Column(db.String(100), nullable=False)
+    car_type = db.Column(db.String(100), nullable=False)
+    car_year = db.Column(db.Integer(), nullable=False)
+    car_price = db.Column(db.Float(), nullable=False)
+    car_description = db.Column(db.String(250), nullable=False)
 
     def __repr__(self):
         return "<RedCars %r>" % self.car_name
+
 
 db.create_all()
 
@@ -32,6 +38,7 @@ db.create_all()
 @carsales.route('/')
 def index():
     return jsonify({"message": "Welcome to redcars"})
+
 
 @cross_origin()
 @carsales.route('/addcar', methods=['POST'])
@@ -44,16 +51,23 @@ def addcar():
     car_price = car_data['car_price']
     car_description = car_data['car_description']
 
-    car = RedCars(car_name = car_name, car_type = car_type, car_year = car_year, car_price = car_price, car_description = car_description)
+    car = RedCars(
+            car_name=car_name,
+            car_type=car_type,
+            car_year=car_year,
+            car_price=car_price,
+            car_description=car_description
+        )
     db.session.add(car)
     db.session.commit()
 
-    #TODO: add a new field car_plate_number and ensure the addcar method doesn't save 
-    # in the database if the plate number exists
+    # TODO: add a new field car_plate_number and ensure the addcar
+    # method doesn't save in the database if the plate number exists
 
     return jsonify({"success": True, "response": "Car successfully added"})
 
-#retrieve all cars
+
+# retrieve all cars
 @cross_origin()
 @carsales.route('/getcars', methods=['GET'])
 def getcars():
@@ -70,7 +84,7 @@ def getcars():
         }
         all_cars.append(results)
 
-    #TODO: create a getcar by id route
+    # TODO: create a getcar by id route
 
     return jsonify(
         {
@@ -79,6 +93,7 @@ def getcars():
             "total_cars": len(cars)
         }
     )
+
 
 @carsales.route('/updatecar/<int:car_id>', methods=['PATCH'])
 def updatecar(car_id):
@@ -98,77 +113,49 @@ def updatecar(car_id):
         db.session.add(car)
         db.session.commit()
 
-        return jsonify({"success": True, "response": "Car successfully updated"})
+        return jsonify({
+            "success": True,
+            "response": "Car successfully updated"
+        })
 
-#TODO: Implement Delete method
 
-# def connection():
-#     s = 'localhost' #my server name
-#     d = 'vehicles' #my database
-#     u = 'postgres' #my username
-#     p = 'password' #my password
+# TODO: Implement Delete method
+@carsales.route('/deletecar/<int:car_id>', methods=['DELETE'])
+def deletecar(car_id):
+    car = RedCars.query.get_or_404(car_id)
 
-#     conn = psycopg2.connect(host=s, user=u, password=p, database=d)
-#     return conn
+    db.session.delete(car)
+    db.session.commit()
 
-# @carsales.route('/')
-# def main():
-#     cars = []
-#     conn = connection()
-#     cursor = conn.cursor()
-#     cursor.execute("SELECT * FROM RedDevilCars")
-#     for row in cursor.fetchall():
-#         cars.append({"id": row[0], "name": row[1], "year": row[2], "price": row[3]})
-#     conn.close()
-#     return render_template("carslist.html", cars = cars)
+    return jsonify({
+        'success': True,
+        'message': f'Car: {car_id} has been deleted'
+        })
 
-# @carsales.route('/addcar', methods=['GET', 'POST'])
-# def addcar():
-#     if request.method == 'GET':
-#         return render_template("addcar.html")
-#     if request.method == 'POST':
-#         id = int(request.form["id"])
-#         name = request.form["name"]
-#         year = int(request.form["year"])
-#         price = float(request.form["price"])
+@carsales.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 404,
+        'message': 'Resource not Found'
+    }), 404
 
-#         conn = connection()
-#         cursor = conn.cursor()
-#         cursor.execute("INSERT INTO RedDevilCars (id, name, year, price) VALUES (%s, %s, %s, %s)", (id, name, year, price))
-#         conn.commit()
-#         conn.close()
-#         return redirect('/')
+@carsales.errorhandler(405)
+def method_not_allowed(error):
+    return jsonify({
+        'success': False,
+        'error': 405,
+        'message': 'Methos not allowed'
+    }), 405
 
-# @carsales.route('/updatecar/<int:id>', methods=['GET', 'POST'])
-# def updatecar(id):
-#     cr = []
-#     conn = connection()
-#     cursor = conn.cursor()
-#     if request.method == 'GET':
-#         cursor.execute("SELECT * FROM RedDevilCars where id = %s", (str(id)))
-#         for row in cursor.fetchall():
-#             cr.append({"id": row[0], "name": row[1], "year": row[2], "price": row[3]})
-#         conn.close()
-#         return render_template("addcar.html", car = cr[0])
-    
-#     if request.method == 'POST':
-#         name = str(request.form["name"])
-#         year = int(request.form["year"])
-#         price = float(request.form["price"])
+@carsales.errorhandler(500)
+def server_error(error):
+    return jsonify({
+        'success': False,
+        'error': 500,
+        'message': 'server error'
+    }), 500
 
-#         cursor.execute("UPDATE RedDevilCars SET name = %s, year = %s, price = %s where id = %s", (name, year, price, id))
-#         conn.commit()
-#         conn.close()
-#         return redirect('/')
-
-# @carsales.route('/deletecar/<int:id>')
-# def deletecar(id):
-    # conn = connection()
-    # cursor = conn.cursor()
-    # cursor.execute("DELETE FROM RedDevilCars WHERE id = %s", (str(id)))
-    # conn.commit()
-    # conn.close()
-    # return redirect('/')
 
 if __name__ == '__main__':
     carsales.run(debug=True)

@@ -1,6 +1,5 @@
 import os
-from flask import Flask, redirect, render_template, request, jsonify, abort
-import psycopg2
+from flask import Flask, request, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 # updated
@@ -13,7 +12,9 @@ carsales = Flask(__name__)
 
 CORS(carsales)
 
-carsales.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{user}:{passwd}@localhost/vehicles'
+carsales.config['SQLALCHEMY_DATABASE_URI'] = (
+    f'postgresql://{user}:{passwd}@192.168.100.10/vehicles'
+)
 carsales.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(carsales)
@@ -64,9 +65,19 @@ def addcar():
     else:
         abort(422)
 
+    car = RedCars(
+            car_name=car_name,
+            car_type=car_type,
+            car_year=car_year,
+            car_price=car_price,
+            car_description=car_description,
+            car_plate = car_plate
+        )
+    db.session.add(car)
+    db.session.commit()
 
-# retrieve all cars
-
+    # TODO: add a new field car_plate_number and ensure the addcar
+    # method doesn't save in the database if the plate number exists
 
 @cross_origin()
 @carsales.route('/getcars', methods=['GET'])
@@ -136,46 +147,48 @@ def updatecar(car_id):
         db.session.add(car)
         db.session.commit()
 
-        return jsonify({"success": True, "response": "Car successfully updated"})
+        return jsonify({
+            "success": True,
+            "response": "Car successfully updated"
+        })
+
 
 # TODO: Implement Delete method
+@carsales.route('/deletecar/<int:car_id>', methods=['DELETE'])
+def deletecar(car_id):
+    car = RedCars.query.get_or_404(car_id)
 
-# def connection():
-#     s = 'localhost' #my server name
-#     d = 'vehicles' #my database
-#     u = 'postgres' #my username
-#     p = 'password' #my password
+    db.session.delete(car)
+    db.session.commit()
 
-#     conn = psycopg2.connect(host=s, user=u, password=p, database=d)
-#     return conn
+    return jsonify({
+        'success': True,
+        'message': f'Car: {car_id} has been deleted'
+        })
 
-# @carsales.route('/')
-# def main():
-#     cars = []
-#     conn = connection()
-#     cursor = conn.cursor()
-#     cursor.execute("SELECT * FROM RedDevilCars")
-#     for row in cursor.fetchall():
-#         cars.append({"id": row[0], "name": row[1], "year": row[2], "price": row[3]})
-#     conn.close()
-#     return render_template("carslist.html", cars = cars)
+@carsales.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 404,
+        'message': 'Resource not Found'
+    }), 404
 
-# @carsales.route('/addcar', methods=['GET', 'POST'])
-# def addcar():
-#     if request.method == 'GET':
-#         return render_template("addcar.html")
-#     if request.method == 'POST':
-#         id = int(request.form["id"])
-#         name = request.form["name"]
-#         year = int(request.form["year"])
-#         price = float(request.form["price"])
+@carsales.errorhandler(405)
+def method_not_allowed(error):
+    return jsonify({
+        'success': False,
+        'error': 405,
+        'message': 'Methos not allowed'
+    }), 405
 
-#         conn = connection()
-#         cursor = conn.cursor()
-#         cursor.execute("INSERT INTO RedDevilCars (id, name, year, price) VALUES (%s, %s, %s, %s)", (id, name, year, price))
-#         conn.commit()
-#         conn.close()
-#         return redirect('/')
+@carsales.errorhandler(500)
+def server_error(error):
+    return jsonify({
+        'success': False,
+        'error': 500,
+        'message': 'server error'
+    }), 500
 
 # @carsales.route('/updatecar/<int:id>', methods=['GET', 'POST'])
 # def updatecar(id):
@@ -193,20 +206,6 @@ def updatecar(car_id):
 #         name = str(request.form["name"])
 #         year = int(request.form["year"])
 #         price = float(request.form["price"])
-
-#         cursor.execute("UPDATE RedDevilCars SET name = %s, year = %s, price = %s where id = %s", (name, year, price, id))
-#         conn.commit()
-#         conn.close()
-#         return redirect('/')
-
-# @carsales.route('/deletecar/<int:id>')
-# def deletecar(id):
-    # conn = connection()
-    # cursor = conn.cursor()
-    # cursor.execute("DELETE FROM RedDevilCars WHERE id = %s", (str(id)))
-    # conn.commit()
-    # conn.close()
-    # return redirect('/')
 
 
 if __name__ == '__main__':

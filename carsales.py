@@ -1,6 +1,6 @@
 import os
-from flask import Flask, redirect, render_template, request, jsonify, abort
-import psycopg2
+from flask import Flask, request, jsonify, abort
+# import psycopg2
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 # updated
@@ -13,7 +13,9 @@ carsales = Flask(__name__)
 
 CORS(carsales)
 
-carsales.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{user}:{passwd}@localhost/vehicles'
+carsales.config['SQLALCHEMY_DATABASE_URI'] = (
+    f'postgresql://{user}:{passwd}@localhost/vehicles'
+)
 carsales.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(carsales)
@@ -54,10 +56,18 @@ def addcar():
     car_plate = car_data['car_plate']
     # updated
     check_plate = RedCars.query.filter(
-        RedCars.car_plate_number == car_plate).one_or_none()
-    if check_plate == None:
-        car = RedCars(car_name=car_name, car_type=car_type, car_year=car_year,
-                      car_price=car_price, car_description=car_description, car_plate_number=car_plate)
+        RedCars.car_plate_number == car_plate
+    ).one_or_none()
+
+    if check_plate is None:
+        car = RedCars(
+            car_name=car_name,
+            car_type=car_type,
+            car_year=car_year,
+            car_price=car_price,
+            car_description=car_description,
+            car_plate_number=car_plate
+        )
         db.session.add(car)
         db.session.commit()
         return jsonify({"success": True, "response": "Car successfully added"})
@@ -98,7 +108,7 @@ def getcars():
 def get_car_by_id(id):
     try:
         get_car = RedCars.query.filter(RedCars.id == id).one_or_none()
-        if get_car == None:
+        if get_car is None:
             abort(404)
         else:
             results = {
@@ -138,7 +148,50 @@ def updatecar(car_id):
 
         return jsonify({"success": True, "response": "Car successfully updated"})
 
+
 # TODO: Implement Delete method
+@carsales.route('/getcars/<int:car_id>', methods=['DELETE'])
+def delete_car(car_id):
+    car = RedCars.query.get_or_404(car_id)
+
+    db.session.delete(car)
+    db.session.commit()
+
+
+@carsales.errorhandler(400)
+def bad_request(error):
+    return jsonify({
+        'success': False,
+        'error': 400,
+        'message': 'bad request'
+        }), 400
+
+
+@carsales.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 404,
+        'message': 'resource not found'
+        }), 404
+
+
+@carsales.errorhandler(405)
+def method_not_allowed(error):
+    return jsonify({
+        'success': False,
+        'error': 405,
+        'message': 'method not allowed'
+        }), 405
+
+
+@carsales.errorhandler(500)
+def server_error(error):
+    return jsonify({
+        'success': False,
+        'error': 500,
+        'message': 'server error'
+        }), 500
 
 # def connection():
 #     s = 'localhost' #my server name

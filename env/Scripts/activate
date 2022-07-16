@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Projects\Python\RedDevils\env"
+VIRTUAL_ENV="C:\Users\ayokunle.olowoniwa\Downloads\gaby\udacity\Projects\reddevils\UdacityNanodegree_RedDevilsClass\env"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

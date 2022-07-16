@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=C:\Projects\Python\RedDevils\env
+set VIRTUAL_ENV=C:\Users\ayokunle.olowoniwa\Downloads\gaby\udacity\Projects\reddevils\UdacityNanodegree_RedDevilsClass\env
 
 if not defined PROMPT set PROMPT=$P$G
 
